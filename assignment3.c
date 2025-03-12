@@ -56,7 +56,6 @@ int main() {
 	}
 
 	while(fgets(buff, BUFFER_SIZE, fptr) != NULL) {
-		bool updated = false;
 		total_addrs++;
 		int logical_addr = atoi(buff);
 		int pg_num = logical_addr >> OFFSET_BITS;
@@ -67,16 +66,19 @@ int main() {
 			//TLB hit
 			total_tlbh++;
 		}else{
+			// If not in TLB, find in page table
 			frm_num = page_table[pg_num];
 		}
-		
+
+		// If not in page table or TLB
 		if (frm_num == -1) {
+			// Page fault handling
 			if (memfull) {
 				for (int i = 0; i < PAGES; i++) {
 					if (page_table[i] == memidx){
+						// Resetting values of TLB and page table when replacing page in physical memory.
 						if(search_TLB(TLB, page_table[i]) != -1){
-							update_TLB(TLB,pg_num,memidx);
-							updated = true;
+							update_TLB(TLB,pg_num,-1);
 						}
 						page_table[i] = -1;
 						break;
@@ -85,14 +87,12 @@ int main() {
 			}
 			total_pf++;
 			frm_num = memidx;
-			
+			add_TLB(TLB,frm_num,pg_num);
 			writemem(bkstoreptr + pg_num*256);
 			page_table[pg_num] = frm_num;
 		}
-		
-		if(updated == false){
-			add_TLB(TLB,frm_num,pg_num);
-		}
+	
+			
 		int frm_addr = frm_num << OFFSET_BITS;
 		int phys_addr = frm_addr | pg_offset;
 		printf("%d - Logical addr: %d, Page num: %d, Frame num: %d, Physical addr: %d, Value: %d\n", total_addrs, logical_addr, pg_num, frm_num, phys_addr, mem[phys_addr]);
@@ -118,7 +118,6 @@ void writemem(signed char *data) {
 }
 
 int search_TLB(struct TLBentry* TLBlist, int target) {
-
 	for(int i=0; i < TLB_SIZE; i++){
 		if(TLBlist[i].page == target){
 			return TLBlist[i].frame;
@@ -140,6 +139,7 @@ void update_TLB(struct TLBentry* TLBlist, int new_frame, int page){
 	for(int i=0; i < TLB_SIZE; i++){
 		if(TLBlist[i].page == page){
 			TLBlist[i].frame = new_frame;
+			TLBlist[i].page = -1;
 			return;
 		}
 	}
