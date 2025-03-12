@@ -89,6 +89,7 @@ int main() {
 			writemem(bkstoreptr + pg_num*256);
 			page_table[pg_num] = frm_num;
 		}
+		
 		if(updated == false){
 			add_TLB(TLB,frm_num,pg_num);
 		}
